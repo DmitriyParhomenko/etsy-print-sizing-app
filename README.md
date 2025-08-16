@@ -192,13 +192,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by the need for professional print preparation tools
 - Thanks to the open-source React ecosystem
 
+## 👨‍💻 Author
+
+**Dmitriy Parhomenko**
+- Website: [devraiks.com](https://devraiks.com/)
+- GitHub: [@DmitriyParhomenko](https://github.com/DmitriyParhomenko)
+- Project Repository: [etsy-print-sizing-app](https://github.com/DmitriyParhomenko/etsy-print-sizing-app)
+
 ## 📞 Support
 
 For support, feature requests, or bug reports:
-- Create an issue on GitHub
+- Create an issue on [GitHub](https://github.com/DmitriyParhomenko/etsy-print-sizing-app/issues)
 - Check the documentation
 - Review the code comments for implementation details
 
 ---
 
-**Made with ❤️ for Etsy sellers who want professional-quality prints**
+**Made with ❤️ by [Dmitriy Parhomenko](https://devraiks.com/) for Etsy sellers who want professional-quality prints**

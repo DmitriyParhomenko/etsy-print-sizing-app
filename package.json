@@ -2,6 +2,18 @@
   "name": "etsy-print-sizing-app",
   "version": "1.0.0",
   "description": "Web application for Etsy sellers to generate properly sized digital prints in multiple aspect ratios",
+  "author": {
+    "name": "Dmitriy Parhomenko",
+    "url": "https://devraiks.com/"
+  },
+  "homepage": "https://github.com/DmitriyParhomenko/etsy-print-sizing-app.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DmitriyParhomenko/etsy-print-sizing-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DmitriyParhomenko/etsy-print-sizing-app/issues"
+  },
   "main": "index.js",
   "scripts": {
     "dev": "vite",
@@ -43,6 +55,5 @@
     "artwork",
     "300dpi"
   ],
-  "author": "Etsy Print Sizing App",
   "license": "MIT"
 }
