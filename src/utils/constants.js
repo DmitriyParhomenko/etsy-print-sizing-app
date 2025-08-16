@@ -41,7 +41,7 @@ export const COLOR_SPACE = 'srgb';
 
 // Quality settings for different formats
 export const QUALITY_SETTINGS = {
-  jpeg: 0.92,
+  jpeg: 1.0,
   png: 1.0
 };
 
