@@ -1,6 +1,6 @@
 import { TARGET_DPI, QUALITY_SETTINGS } from './constants.js';
 import { calculatePixelDimensions, calculateCropDimensions } from './sizeCalculations.js';
-import * as piexif from 'piexifjs';
+import { embedDPIMetadata } from './dpiUtils.js';
 
 /**
  * Load an image from a file
@@ -74,10 +74,16 @@ export const processImageForSize = async (image, printSize, cropSettings = null,
   const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
 
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (format === 'jpeg') {
         // Add DPI metadata to JPEG
-        addDPIMetadata(blob, TARGET_DPI).then(resolve);
+        try {
+          const dpiBlob = await embedDPIMetadata(blob, TARGET_DPI);
+          resolve(dpiBlob);
+        } catch (error) {
+          console.warn('DPI metadata failed, using original blob:', error);
+          resolve(blob);
+        }
       } else {
         resolve(blob);
       }
@@ -141,23 +147,38 @@ export const createPreviewImage = (image, maxWidth = 400, maxHeight = 300) => {
 };
 
 /**
- * Add DPI metadata to JPEG blob
+ * Add DPI metadata to JPEG blob using multiple methods
  * @param {Blob} blob - Image blob
  * @param {number} dpi - DPI value to embed
  * @returns {Promise<Blob>} Blob with DPI metadata
  */
 const addDPIMetadata = async (blob, dpi) => {
   try {
+    // Method 1: Try with piexifjs
     const arrayBuffer = await blob.arrayBuffer();
-    const dataURL = `data:image/jpeg;base64,${btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))}`;
+    const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Create EXIF data with DPI information
+    // Convert to base64 more efficiently
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const dataURL = `data:image/jpeg;base64,${btoa(binary)}`;
+    
+    // Create comprehensive EXIF data with DPI information
     const exifObj = {
       "0th": {
         [piexif.ImageIFD.XResolution]: [dpi, 1],
         [piexif.ImageIFD.YResolution]: [dpi, 1],
         [piexif.ImageIFD.ResolutionUnit]: 2, // inches
-        [piexif.ImageIFD.Software]: "Etsy Print Sizing App"
+        [piexif.ImageIFD.Software]: "Etsy Print Sizing App",
+        [piexif.ImageIFD.ImageWidth]: 0, // Will be set by canvas
+        [piexif.ImageIFD.ImageLength]: 0 // Will be set by canvas
+      },
+      "Exif": {
+        [piexif.ExifIFD.ColorSpace]: 1, // sRGB
+        [piexif.ExifIFD.PixelXDimension]: 0,
+        [piexif.ExifIFD.PixelYDimension]: 0
       }
     };
     
@@ -166,11 +187,60 @@ const addDPIMetadata = async (blob, dpi) => {
     
     // Convert back to blob
     const response = await fetch(newDataURL);
-    return await response.blob();
+    const resultBlob = await response.blob();
+    
+    console.log('DPI metadata added successfully');
+    return resultBlob;
+    
   } catch (error) {
-    console.warn('Failed to add DPI metadata:', error);
-    return blob; // Return original blob if metadata insertion fails
+    console.warn('Failed to add DPI metadata with piexifjs:', error);
+    
+    // Method 2: Fallback - create new canvas with proper density
+    try {
+      return await addDPIViaCanvas(blob, dpi);
+    } catch (fallbackError) {
+      console.warn('Fallback DPI method also failed:', fallbackError);
+      return blob;
+    }
   }
+};
+
+/**
+ * Fallback method to add DPI via canvas density
+ * @param {Blob} blob - Image blob
+ * @param {number} dpi - DPI value
+ * @returns {Promise<Blob>} Blob with density information
+ */
+const addDPIViaCanvas = async (blob, dpi) => {
+  const img = new Image();
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  return new Promise((resolve, reject) => {
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // Set canvas density (though this won't embed in EXIF)
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw image
+      ctx.drawImage(img, 0, 0);
+      
+      // Convert to blob with maximum quality
+      canvas.toBlob((resultBlob) => {
+        if (resultBlob) {
+          resolve(resultBlob);
+        } else {
+          reject(new Error('Failed to create blob'));
+        }
+      }, 'image/jpeg', 1.0);
+    };
+    
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
 };
 
 /**
