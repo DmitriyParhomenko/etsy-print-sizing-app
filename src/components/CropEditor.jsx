@@ -2,13 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, RotateCcw, Check, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import useAppStore from '../store/useAppStore.js';
 import { calculateCropDimensions } from '../utils/sizeCalculations.js';
+import { processImageForSize } from '../utils/imageUtils.js';
 
 const CropEditor = () => {
   const { 
     showCropEditor, 
     selectedImageForCrop, 
     closeCropEditor, 
-    originalImage 
+    originalImage,
+    processedImages,
+    setProcessedImages,
+    setProcessing
   } = useAppStore();
 
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
@@ -32,14 +36,19 @@ const CropEditor = () => {
   const initializeCrop = () => {
     if (!selectedImageForCrop || !originalImage) return;
 
-    const targetRatio = selectedImageForCrop.size.width / selectedImageForCrop.size.height;
-    const cropDimensions = calculateCropDimensions(
-      originalImage.width, 
-      originalImage.height, 
-      targetRatio
-    );
-
-    setCropArea(cropDimensions);
+    // Check if this image already has crop settings stored
+    if (selectedImageForCrop.cropSettings) {
+      setCropArea(selectedImageForCrop.cropSettings);
+    } else {
+      // Calculate default crop area based on aspect ratio
+      const targetRatio = selectedImageForCrop.size.width / selectedImageForCrop.size.height;
+      const cropDimensions = calculateCropDimensions(
+        originalImage.width, 
+        originalImage.height, 
+        targetRatio
+      );
+      setCropArea(cropDimensions);
+    }
   };
 
   const drawCanvas = () => {
@@ -50,10 +59,10 @@ const CropEditor = () => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Set canvas size to fit container
+    // Set canvas size to fit container with more generous sizing
     const containerRect = container.getBoundingClientRect();
-    const maxWidth = containerRect.width - 40;
-    const maxHeight = containerRect.height - 40;
+    const maxWidth = Math.max(800, containerRect.width - 40);
+    const maxHeight = Math.max(600, containerRect.height - 40);
 
     const scale = Math.min(
       maxWidth / originalImage.width,
@@ -151,17 +160,41 @@ const CropEditor = () => {
     initializeCrop();
   };
 
-  const handleApply = () => {
-    // Here you would apply the crop settings to reprocess the image
-    // For now, we'll just close the editor
-    closeCropEditor();
+  const handleApply = async () => {
+    if (!selectedImageForCrop || !originalImage) return;
+
+    try {
+      setProcessing(true, 0);
+      
+      // Reprocess the image with the new crop settings
+      const newBlob = await processImageForSize(originalImage, selectedImageForCrop.size, cropArea);
+      
+      // Update the processed images array with the new cropped version
+      const updatedImages = processedImages.map(img => 
+        img.size.label === selectedImageForCrop.size.label 
+          ? { 
+              ...img, 
+              blob: newBlob, 
+              url: URL.createObjectURL(newBlob),
+              cropSettings: cropArea // Store crop settings for future editing
+            }
+          : img
+      );
+      
+      setProcessedImages(updatedImages);
+      setProcessing(false, 100);
+      closeCropEditor();
+    } catch (error) {
+      console.error('Error applying crop:', error);
+      setProcessing(false, 0);
+    }
   };
 
   if (!showCropEditor || !selectedImageForCrop) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl max-w-7xl w-full max-h-[95vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
@@ -184,7 +217,7 @@ const CropEditor = () => {
         {/* Canvas Container */}
         <div 
           ref={containerRef}
-          className="flex-1 p-6 flex items-center justify-center bg-gray-100 overflow-hidden"
+          className="flex-1 p-4 flex items-center justify-center bg-gray-100 overflow-hidden min-h-[600px]"
         >
           <canvas
             ref={canvasRef}
@@ -192,7 +225,7 @@ const CropEditor = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="cursor-move border border-gray-300 rounded"
+            className="cursor-move border border-gray-300 rounded shadow-lg"
             style={{ maxWidth: '100%', maxHeight: '100%' }}
           />
         </div>

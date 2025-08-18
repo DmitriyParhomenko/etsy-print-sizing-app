@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Download, RefreshCw, Grid, List } from 'lucide-react';
 import useAppStore from '../store/useAppStore.js';
 import SizeCard from './SizeCard.jsx';
+import PreviewModal from './PreviewModal.jsx';
 import { processImageForAllSizes } from '../utils/imageUtils.js';
 import { getAllSizes } from '../utils/constants.js';
 
@@ -21,6 +22,7 @@ const PreviewGrid = () => {
 
   const [viewMode, setViewMode] = useState('grid');
   const [selectedAspectRatio, setSelectedAspectRatio] = useState('all');
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, imageData: null });
 
   useEffect(() => {
     if (originalImage && processedImages.length === 0) {
@@ -65,16 +67,11 @@ const PreviewGrid = () => {
   };
 
   const handlePreview = (imageData) => {
-    // Open full-size preview modal
-    const newWindow = window.open('', '_blank');
-    newWindow.document.write(`
-      <html>
-        <head><title>${imageData.size.label} Preview</title></head>
-        <body style="margin:0; background:#000; display:flex; align-items:center; justify-content:center; min-height:100vh;">
-          <img src="${imageData.url}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-        </body>
-      </html>
-    `);
+    setPreviewModal({ isOpen: true, imageData });
+  };
+
+  const closePreviewModal = () => {
+    setPreviewModal({ isOpen: false, imageData: null });
   };
 
   const filteredImages = processedImages.filter(img => {
@@ -190,6 +187,14 @@ const PreviewGrid = () => {
           <p className="text-gray-500">No images match the selected filter</p>
         </div>
       )}
+
+      {/* Preview Modal */}
+      <PreviewModal
+        imageData={previewModal.imageData}
+        isOpen={previewModal.isOpen}
+        onClose={closePreviewModal}
+        onDownload={handleDownload}
+      />
     </div>
   );
 };
