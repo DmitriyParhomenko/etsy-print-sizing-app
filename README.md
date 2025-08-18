@@ -123,7 +123,7 @@ Adjust image quality in `src/utils/constants.js`:
 
 ```javascript
 export const QUALITY_SETTINGS = {
-  jpeg: 0.92,  // 92% quality for JPEG
+  jpeg: 1.0,  // 100% quality for JPEG
   png: 1.0     // 100% quality for PNG
 };
 ```
